@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pillow
+langgraph
+langchain-groq
+langchain_groq

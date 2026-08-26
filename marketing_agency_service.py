@@ -3,7 +3,9 @@ from fastapi.responses import JSONResponse
 import os
 import base64
 import uuid
-from typing import List, Dict, Optional
+import operator
+from typing import List, Dict, Optional, Annotated
+from typing_extensions import TypedDict
 from PIL import Image
 import io
 import logging
@@ -33,6 +35,24 @@ logger = logging.getLogger(__name__)
 # Initialize Groq client (reads from env for key)
 os.environ["GROQ_API_KEY"] = GROQ_API_KEY
 groq_llm = ChatGroq(model_name=GROQ_MODEL, temperature=GROQ_TEMPERATURE)
+
+# --- Graph state definition ---
+# Using a plain dict as state causes each node's return value to overwrite
+# existing keys (including "logs"), so only the last node's logs survive.
+# TypedDict + Annotated[list, operator.add] makes "logs" accumulate across
+# nodes instead of being clobbered.
+class GraphState(TypedDict, total=False):
+    image_path: Optional[str]
+    image_b64: Optional[str]
+    client_name: str
+    ad_description: str
+    platforms: List[str]
+    base_caption: str
+    scheduled_date: str
+    generated_posts: Dict[str, str]
+    schedule_time: str
+    logs: Annotated[List[str], operator.add]
+
 
 # --- Node implementations ---
 def analyze_image_node(state: dict):
@@ -85,6 +105,9 @@ def generate_captions_with_groq(state: dict):
     base_caption = state.get("base_caption", "")
 
     logs = []
+    if not platforms:
+        logs.append("WARNING: 'platforms' was empty when generate node ran; no posts will be created.")
+
     for platform in platforms:
         prompt = (
             f"Write a high-converting {platform} social post for {client_name}.\n"
@@ -116,7 +139,7 @@ def scheduler_node(state: dict):
 
 # --- Build graph once at startup ---
 def build_graph():
-    workflow_v2 = StateGraph(dict)  # we use plain dict for state objects
+    workflow_v2 = StateGraph(GraphState)
     workflow_v2.add_node("analyze", analyze_image_node)
     workflow_v2.add_node("generate", generate_captions_with_groq)
     workflow_v2.add_node("scheduler", scheduler_node)
@@ -175,6 +198,15 @@ async def generate(
             raise HTTPException(status_code=400, detail=f"Failed to read uploaded image: {e}")
 
     platform_list = [p.strip() for p in platforms.split(",") if p.strip()]
+
+    if not platform_list:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No valid platforms provided. 'platforms' must be a non-empty "
+                "comma-separated string, e.g. 'Instagram,LinkedIn'."
+            ),
+        )
 
     inputs = {
         "image_path": None,

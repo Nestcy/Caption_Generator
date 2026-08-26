@@ -5,3 +5,4 @@ pillow
 langgraph
 langchain-groq
 langchain_groq
+typing_extensions

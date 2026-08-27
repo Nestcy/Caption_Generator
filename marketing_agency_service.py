@@ -38,11 +38,8 @@ os.environ["GROQ_API_KEY"] = GROQ_API_KEY
 groq_llm = ChatGroq(
     model_name=GROQ_MODEL,
     temperature=GROQ_TEMPERATURE,
-    # NOTE: reasoning_effort="none" is only valid on Qwen3 models on Groq
-    # (e.g. qwen/qwen3-32b). openai/gpt-oss-20b and openai/gpt-oss-120b only
-    # accept 'low' | 'medium' | 'high' and will 400 on "none". Set GROQ_MODEL
-    # to a qwen3 model in your environment for this to take effect.
-    model_kwargs={"include_reasoning": False, "reasoning_effort": "none"},
+    reasoning_effort="none",
+    model_kwargs={"include_reasoning": False},
 )
 
 import re

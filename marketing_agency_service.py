@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import JSONResponse
 import os
@@ -172,7 +173,20 @@ app_v2 = build_graph()
 
 # --- FastAPI app ---
 from fastapi import Depends
+from fastapi.middleware.cors import CORSMiddleware
+
 api = FastAPI(title="Marketing Agency Agent")
+
+# Allow browser-based frontends (e.g. an AI Studio app) to call this API.
+# Using "*" since this endpoint is currently public/unauthenticated anyway.
+# If you add auth later, tighten this to your actual frontend's origin(s).
+api.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @api.get("/")
 async def root():
